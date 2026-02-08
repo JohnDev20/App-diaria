@@ -1,0 +1,32 @@
+# Node.js
+node_modules/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builds
+/build/
+
+# Mobile OS specific
+ios/Pods/
+ios/.build/
+android/.gradle/
+android/*.iml
+
+# Misc
+.DS_Store
+.env
+*.swp
+**/*.swp
+*.sublime-project
+*.sublime-workspace
+
+# Editor directories and files
+.vscode/
+.idea/
+*.sublime-workspace
+
