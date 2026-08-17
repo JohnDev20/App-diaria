@@ -299,7 +299,25 @@ Este commit adiciona o relatório e a pasta `auditoria_apk/`, que contém evidê
 
 Os arquivos Java da pasta `auditoria_apk/` são saídas decompiladas e não devem ser usados como código-fonte de produção. O inventário de strings pode conter ruído de bibliotecas e concatenações do bundle.
 
-## 14. Referências
+## 14. Reconstrução implementada após a auditoria
+
+Como o novo ZIP contém relatórios de inspeção e especificação, mas não o projeto-fonte original, foi criada uma base editável Expo/React Native no repositório. A reconstrução preserva a identidade funcional observada — tela inicial, resumo, ajustes, adição de diária e armazenamento local — e adiciona o modo acessibilidade solicitado.
+
+O modo acessibilidade pode ser aberto pelo cartão **Modo fácil** na tela inicial ou ativado em **Ajustes > Modo fácil**. A tela reduzida apresenta um botão grande central. Antes do registro, o botão mostra **Marcar diária**; após o toque, grava uma diária completa para a data atual usando o valor padrão, muda para verde e mostra **Diária marcada**. Abaixo são exibidos a data, o dia da semana e o valor registrado. Se já houver registro para o dia, a ação é idempotente e informa que a diária já estava marcada, sem criar duplicidade.
+
+A implementação usa `accessibilityRole`, `accessibilityLabel`, `accessibilityHint`, `accessibilityLiveRegion` e `AccessibilityInfo.announceForAccessibility`. O estado local é persistido com AsyncStorage. A tela usa letras grandes, contraste alto, área de toque ampla e confirmação em linguagem direta. A especificação detalhada está em [`docs/MODO_ACESSIBILIDADE.md`](./docs/MODO_ACESSIBILIDADE.md).
+
+| Verificação | Resultado |
+|---|---|
+| `npx tsc --noEmit` | Concluído sem erros. |
+| `npm test -- --runInBand` | 3 testes aprovados. |
+| `npx expo export --platform android --no-bytecode` | Bundle Android gerado com 965 módulos. |
+| Teste em dispositivo Android | Pendente; não havia dispositivo/emulador conectado. |
+| Equivalência pixel a pixel com o APK anterior | Pendente; as capturas originais não estavam no ZIP recebido. |
+
+O bundle foi validado sem bytecode Hermes apenas para permitir a checagem do JavaScript no ambiente atual. A geração de um APK instalável, a leitura pelo TalkBack e a confirmação visual em hardware ainda precisam ser executadas em um ambiente Android.
+
+## 15. Referências
 
 [1]: https://github.com/JohnDev20/App-diaria/blob/main/package.json "Manifesto de dependências e scripts do repositório"
 

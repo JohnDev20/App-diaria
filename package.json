@@ -1,1 +1,35 @@
-{"name": "app-diaria","version": "1.0.0","private": true,"description": "App mobile criado com Natively","scripts": {"start": "react-native start","build": "react-native build","test": "jest"},"dependencies": {"react": "^17.0.2","react-native": "^0.66.0"},"devDependencies": {"jest": "^27.0.6","babel-jest": "^27.0.6"}}
+{
+  "name": "minhas-diarias",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minhas Diárias com modo acessibilidade",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~54.0.0",
+    "expo-asset": "~12.0.13",
+    "expo-constants": "~18.0.13",
+    "expo-linking": "~8.0.12",
+    "expo-router": "~6.0.0",
+    "expo-splash-screen": "~31.0.13",
+    "expo-status-bar": "~3.0.8",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/react": "~19.1.10",
+    "babel-preset-expo": "~54.0.10",
+    "jest": "~29.7.0",
+    "typescript": "~5.9.2"
+  }
+}

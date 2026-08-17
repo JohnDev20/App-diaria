@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Minhas Diárias",
+    "slug": "minhas-diarias-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "minhasdiarias",
+    "newArchEnabled": true,
+    "android": {
+      "package": "space.manus.minhas.diarias.app.t20260210200658",
+      "minSdkVersion": 24,
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
