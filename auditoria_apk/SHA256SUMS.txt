@@ -1,0 +1,4 @@
+61b54762fb0ffd187c99fa7e9a65f2f12c8f3c6d6826e3bb0b6e2e88ce526f8c  /home/ubuntu/upload/MinhasDirias_1.0.0_space.manus.minhas.diarias.app.t20260210200658.apk_Decompiler.com.zip
+19bb053d93f79a3f19fbb046046072486de42d483c8f4ccdb77df46b37ba7512  /home/ubuntu/apk_analysis_minhas_diarias/resources/assets/index.android.bundle
+29c28d68cf1cadfe5d7fa157e968208550303b0115f3ee00ec04cfd98b7c3031  /home/ubuntu/apk_analysis_minhas_diarias/resources/assets/app.config
+62bcc9d6f020a88dc136917c709207189478c822c0487f8fe46395140c26649e  /home/ubuntu/apk_analysis_minhas_diarias/resources/AndroidManifest.xml
