@@ -30,3 +30,8 @@ android/*.iml
 .idea/
 *.sublime-workspace
 
+
+# Android generated build outputs
+android/app/build/
+android/build/
+android/.cxx/
