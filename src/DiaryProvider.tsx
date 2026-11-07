@@ -1,53 +1,64 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
-  DEFAULT_SETTINGS,
+  DiaryData,
   DiaryRecord,
   DiarySettings,
-  STORAGE_KEYS,
-  toDateKey,
+  Payment,
+  emptyData,
   makeDiaryRecord,
-} from './diary';
-
-type DiaryContextValue = {
-  records: DiaryRecord[];
-  settings: DiarySettings;
+  toDateKey,
+  upsertRecord,
+  STORAGE_KEYS,
+  validateData,
+} from "./diary";
+import { createWriter, loadData } from "./storage";
+type Context = DiaryData & {
   loading: boolean;
-  saveSettings: (next: Partial<DiarySettings>) => Promise<void>;
-  markToday: () => Promise<{ record: DiaryRecord; alreadyMarked: boolean }>;
-  addRecord: (record: DiaryRecord) => Promise<void>;
-  getRecordForDate: (date: string) => DiaryRecord | undefined;
+  error: string;
+  retry: () => void;
+  saveSettings: (s: DiarySettings) => Promise<void>;
+  addRecord: (
+    r: DiaryRecord,
+    replace?: boolean,
+    originalDate?: string,
+  ) => Promise<void>;
+  deleteRecord: (date: string) => Promise<void>;
+  markToday: () => Promise<void>;
+  savePayment: (p: Payment) => Promise<void>;
+  deletePayment: (id: string) => Promise<void>;
+  restore: (d: DiaryData) => Promise<void>;
+  recover: (d?: DiaryData) => Promise<void>;
 };
-
-const DiaryContext = createContext<DiaryContextValue | undefined>(undefined);
-
+const DiaryContext = createContext<Context | null>(null);
 export function DiaryProvider({ children }: { children: React.ReactNode }) {
-  const [records, setRecords] = useState<DiaryRecord[]>([]);
-  const [settings, setSettings] = useState<DiarySettings>(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(true);
-
+  const [data, setData] = useState(emptyData),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(""),
+    [attempt, setAttempt] = useState(0);
+  const writer = useRef<ReturnType<typeof createWriter> | null>(null);
   useEffect(() => {
     let active = true;
-    Promise.all([
-      AsyncStorage.getItem(STORAGE_KEYS.records),
-      AsyncStorage.getItem(STORAGE_KEYS.settings),
-    ])
-      .then(([storedRecords, storedSettings]) => {
-        if (!active) return;
-        if (storedRecords) {
-          try {
-            setRecords(JSON.parse(storedRecords));
-          } catch {
-            setRecords([]);
-          }
+    setLoading(true);
+    setError("");
+    loadData(AsyncStorage)
+      .then((d) => {
+        if (active) {
+          writer.current = createWriter(AsyncStorage, d, setData);
+          setData(d);
         }
-        if (storedSettings) {
-          try {
-            setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) });
-          } catch {
-            setSettings(DEFAULT_SETTINGS);
-          }
-        }
+      })
+      .catch(() => {
+        if (active)
+          setError(
+            "Não foi possível ler seus dados. Eles foram preservados. Tente novamente antes de fazer novos registros.",
+          );
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -55,49 +66,84 @@ export function DiaryProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, []);
-
-  const persistRecords = useCallback(async (next: DiaryRecord[]) => {
-    const ordered = [...next].sort((a, b) => b.date.localeCompare(a.date));
-    setRecords(ordered);
-    await AsyncStorage.setItem(STORAGE_KEYS.records, JSON.stringify(ordered));
-  }, []);
-
-  const saveSettings = useCallback(async (next: Partial<DiarySettings>) => {
-    const merged = { ...settings, ...next };
-    setSettings(merged);
-    await AsyncStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(merged));
-  }, [settings]);
-
-  const addRecord = useCallback(async (record: DiaryRecord) => {
-    const withoutDate = records.filter((item) => item.date !== record.date);
-    await persistRecords([...withoutDate, record]);
-  }, [persistRecords, records]);
-
-  const markToday = useCallback(async () => {
-    const date = toDateKey();
-    const existing = records.find((item) => item.date === date);
-    if (existing) return { record: existing, alreadyMarked: true };
-    const record = makeDiaryRecord(date, settings.defaultAmount);
-    await addRecord(record);
-    return { record, alreadyMarked: false };
-  }, [addRecord, records, settings.defaultAmount]);
-
-  const getRecordForDate = useCallback(
-    (date: string) => records.find((item) => item.date === date),
-    [records],
+  }, [attempt]);
+  async function update(fn: (d: DiaryData) => DiaryData) {
+    if (!writer.current || loading || error)
+      throw new Error("Aguarde o carregamento dos dados.");
+    await writer.current(fn);
+  }
+  async function recover(next?: DiaryData) {
+    const raw = await AsyncStorage.getItem(STORAGE_KEYS.data);
+    const backup =
+      next ??
+      validateData(
+        JSON.parse(
+          (await AsyncStorage.getItem(STORAGE_KEYS.recovery)) ?? "null",
+        ),
+      );
+    if (raw !== null)
+      await AsyncStorage.setItem("@minhas-diarias/quarantine", raw);
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.data,
+      JSON.stringify(validateData(backup)),
+    );
+    setAttempt((n) => n + 1);
+  }
+  return (
+    <DiaryContext.Provider
+      value={{
+        ...data,
+        loading,
+        error,
+        recover,
+        retry: () => setAttempt((n) => n + 1),
+        saveSettings: (s) => update((d) => ({ ...d, settings: s })),
+        addRecord: (r, replace = false, originalDate) =>
+          update((d) =>
+            upsertRecord(
+              {
+                ...d,
+                records: originalDate
+                  ? d.records.filter((item) => item.date !== originalDate)
+                  : d.records,
+              },
+              r,
+              replace,
+            ),
+          ),
+        deleteRecord: (date) =>
+          update((d) => ({
+            ...d,
+            records: d.records.filter((r) => r.date !== date),
+          })),
+        markToday: () =>
+          update((d) =>
+            d.records.some((r) => r.date === toDateKey())
+              ? d
+              : upsertRecord(
+                  d,
+                  makeDiaryRecord(toDateKey(), d.settings.defaultAmountCents),
+                ),
+          ),
+        savePayment: (p) =>
+          update((d) => ({
+            ...d,
+            payments: [...d.payments.filter((x) => x.id !== p.id), p],
+          })),
+        deletePayment: (id) =>
+          update((d) => ({
+            ...d,
+            payments: d.payments.filter((p) => p.id !== id),
+          })),
+        restore: (next) => update(() => next),
+      }}
+    >
+      {children}
+    </DiaryContext.Provider>
   );
-
-  const value = useMemo(
-    () => ({ records, settings, loading, saveSettings, markToday, addRecord, getRecordForDate }),
-    [records, settings, loading, saveSettings, markToday, addRecord, getRecordForDate],
-  );
-
-  return <DiaryContext.Provider value={value}>{children}</DiaryContext.Provider>;
 }
-
 export function useDiary() {
   const context = useContext(DiaryContext);
-  if (!context) throw new Error('useDiary precisa estar dentro de DiaryProvider');
+  if (!context) throw new Error("DiaryProvider ausente");
   return context;
 }

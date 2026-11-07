@@ -1,3 +1,5 @@
+> Documento histórico da auditoria do APK original e da primeira reconstrução. Para o código atual, consulte README.md e docs/VALIDACAO_1_1.md.
+
 # Auditoria técnica e de segurança — Minhas Diárias
 
 **Repositório auditado:** [JohnDev20/App-diaria](https://github.com/JohnDev20/App-diaria)  

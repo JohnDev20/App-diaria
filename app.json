@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Minhas Diárias",
+    "name": "Minhas Di\u00e1rias",
     "slug": "minhas-diarias-app",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "minhasdiarias",
@@ -10,8 +10,13 @@
     "android": {
       "package": "space.manus.minhas.diarias.app.t20260210200658",
       "minSdkVersion": 24,
-      "permissions": [
-        "POST_NOTIFICATIONS"
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.VIBRATE"
       ]
     },
     "plugins": [
