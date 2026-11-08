@@ -1,0 +1,38 @@
+name: Android APK preview
+on:
+  push:
+    branches: [build/apk-preview-1-1]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run typecheck && npm test -- --runInBand
+      - name: Build standalone preview APK
+        working-directory: android
+        run: ./gradlew assemblePreview --no-daemon --max-workers=2 -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+      - name: Verify APK
+        run: |
+          APK=android/app/build/outputs/apk/preview/app-preview.apk
+          test -s "$APK"
+          sha256sum "$APK" > "$APK.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Minhas-Diarias-1.1.0-preview
+          path: android/app/build/outputs/apk/preview/*.apk*
+          if-no-files-found: error
+          retention-days: 30
