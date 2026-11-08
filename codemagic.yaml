@@ -1,0 +1,36 @@
+workflows:
+  android-preview:
+    name: Android - APK de teste
+    max_build_duration: 60
+    environment:
+      node: 22
+      java: 17
+    scripts:
+      - name: Instalar dependências
+        script: npm ci
+      - name: Validar código e regras
+        script: npm run typecheck && npm test -- --runInBand
+      - name: Gerar APK independente do Metro
+        script: cd android && ./gradlew assemblePreview
+    artifacts:
+      - android/app/build/outputs/apk/preview/*.apk
+  android-release:
+    name: Android - distribuição assinada
+    max_build_duration: 60
+    environment:
+      node: 22
+      java: 17
+      groups:
+        - diarias_signing
+    scripts:
+      - name: Instalar e validar
+        script: npm ci && npm run typecheck && npm test -- --runInBand
+      - name: Preparar assinatura
+        script: |
+          printf '%s' "$DIARIAS_KEYSTORE_BASE64" | base64 --decode > /tmp/diarias-release.jks
+          echo "DIARIAS_KEYSTORE_PATH=/tmp/diarias-release.jks" >> "$CM_ENV"
+      - name: Gerar APK e AAB assinados
+        script: cd android && ./gradlew assembleRelease bundleRelease
+    artifacts:
+      - android/app/build/outputs/apk/release/*.apk
+      - android/app/build/outputs/bundle/release/*.aab

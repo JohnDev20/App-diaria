@@ -1,93 +1,147 @@
-import { router } from 'expo-router';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { useDiary } from '../../src/DiaryProvider';
-import { colors, common } from '../../src/ui';
-
-export default function SettingsScreen() {
-  const { settings, saveSettings } = useDiary();
-  const [amount, setAmount] = useState(String(settings.defaultAmount));
-  const [name, setName] = useState(settings.name);
-
-  async function persist() {
-    const parsed = Number(amount.replace(',', '.'));
-    await saveSettings({ defaultAmount: Number.isFinite(parsed) && parsed >= 0 ? parsed : 120, name: name.trim() });
-  }
-
-  async function toggleAccessibility(value: boolean) {
-    await saveSettings({ accessibilityMode: value });
-    if (value) router.push('/acessibilidade');
-  }
-
+import React, { useEffect, useState } from "react";
+import { Switch, Text, View } from "react-native";
+import { useDiary } from "../../src/DiaryProvider";
+import { DiaryData, moneyInput, parseMoney } from "../../src/diary";
+import { exportBackup, pickBackup } from "../../src/backup";
+import {
+  Button,
+  Confirm,
+  Field,
+  Notice,
+  Screen,
+  useTask,
+} from "../../src/components";
+import { colors, common as s } from "../../src/ui";
+export default function Settings() {
+  const d = useDiary(),
+    task = useTask();
+  const [amount, setAmount] = useState(
+      moneyInput(d.settings.defaultAmountCents),
+    ),
+    [name, setName] = useState(d.settings.name),
+    [easy, setEasy] = useState(d.settings.accessibilityMode),
+    [message, setMessage] = useState(""),
+    [pending, setPending] = useState<DiaryData | null>(null);
+  useEffect(() => {
+    setAmount(moneyInput(d.settings.defaultAmountCents));
+    setName(d.settings.name);
+    setEasy(d.settings.accessibilityMode);
+  }, [d.settings]);
+  const snapshot: DiaryData = {
+    version: 2,
+    settings: d.settings,
+    records: d.records,
+    payments: d.payments,
+  };
   return (
-    <View style={common.screen}>
-      <View style={common.content}>
-        <Text style={common.title} accessibilityRole="header">Ajustes</Text>
-        <Text style={[common.subtitle, { marginTop: 8 }]}>Escolha como o aplicativo deve funcionar para você.</Text>
-
-        <Text style={common.sectionLabel}>MODO DE ACESSIBILIDADE</Text>
-        <View style={styles.accessibilityCard} accessible accessibilityLabel={`Modo de acessibilidade ${settings.accessibilityMode ? 'ligado' : 'desligado'}`}>
-          <View style={styles.flex}>
-            <Text style={styles.cardTitle}>Modo fácil</Text>
-            <Text style={styles.help}>Mostra um botão grande no centro para marcar a diária com um toque.</Text>
-          </View>
-          <Switch
-            value={settings.accessibilityMode}
-            onValueChange={toggleAccessibility}
-            accessibilityLabel="Ligar modo fácil"
-            trackColor={{ false: '#CBD5E1', true: '#93C5FD' }}
-            thumbColor={settings.accessibilityMode ? colors.primary : '#FFFFFF'}
-          />
-        </View>
-
-        <Text style={common.sectionLabel}>VALOR PADRÃO DA DIÁRIA</Text>
-        <View style={styles.inputWrap}>
-          <Text style={styles.prefix}>R$</Text>
-          <TextInput
-            value={amount}
-            onChangeText={setAmount}
-            onBlur={persist}
-            keyboardType="decimal-pad"
-            style={styles.input}
-            accessibilityLabel="Valor padrão da diária"
-            accessibilityHint="Digite o valor usado ao marcar uma nova diária"
-          />
-        </View>
-        <Text style={styles.help}>Este valor será usado ao marcar novas diárias.</Text>
-
-        <Text style={common.sectionLabel}>NOME / IDENTIFICAÇÃO</Text>
-        <TextInput
+    <Screen title="Do seu jeito" subtitle="Ajustes simples para a sua rotina.">
+      <View style={s.card}>
+        <Text style={s.badge}>PREFERÊNCIAS</Text>
+        <Field
+          label="Seu nome (opcional)"
           value={name}
           onChangeText={setName}
-          onBlur={persist}
-          placeholder="Opcional"
-          placeholderTextColor={colors.muted}
-          style={styles.textInput}
-          accessibilityLabel="Nome ou identificação"
+          maxLength={100}
+          placeholder="Como podemos chamar você?"
         />
-        <Text style={styles.help}>Opcional. Pode aparecer no cabeçalho do resumo.</Text>
-
-        <Pressable onPress={persist} accessibilityRole="button" accessibilityLabel="Salvar ajustes" style={({ pressed }) => [common.button, styles.save, pressed && styles.pressed]}>
-          <Text style={[common.buttonText, { color: '#FFFFFF' }]}>Salvar</Text>
-        </Pressable>
-
-        <Text style={styles.footer}>Minhas Diárias v1.0.0</Text>
-        <Text style={styles.footer}>Seus dados ficam armazenados no dispositivo.</Text>
+        <Field
+          label="Valor padrão da diária (R$)"
+          value={amount}
+          onChangeText={setAmount}
+          maxLength={14}
+          keyboardType="decimal-pad"
+        />
+        <Text style={s.subtitle}>
+          Vale para novos registros. O histórico permanece com os valores que
+          você salvou.
+        </Text>
+        <View style={s.divider} />
+        <View style={s.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.recordTitle}>Abrir no modo fácil</Text>
+            <Text style={s.subtitle}>
+              Um botão grande ao iniciar o aplicativo.
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Abrir no modo fácil"
+            value={easy}
+            onValueChange={setEasy}
+            trackColor={{ false: colors.border, true: "#AAC2FF" }}
+            thumbColor={easy ? colors.primary : "#FFFFFF"}
+          />
+        </View>
+        <Button
+          label={task.busy ? "Aguarde…" : "Salvar ajustes"}
+          disabled={task.busy}
+          onPress={() => {
+            setMessage("");
+            task.run(async () => {
+              await d.saveSettings({
+                name: name.trim(),
+                defaultAmountCents: parseMoney(amount),
+                accessibilityMode: easy,
+              });
+              setMessage("Ajustes salvos.");
+            });
+          }}
+        />
       </View>
-    </View>
+      <Notice text={task.error} />
+      <Notice text={message} tone="success" />
+      <View style={s.card}>
+        <Text style={s.badge}>SEUS DADOS</Text>
+        <Text style={s.recordTitle}>Um cuidado com seu histórico</Text>
+        <Text style={s.subtitle}>
+          Os dados ficam neste aparelho. Guarde um backup em outro lugar para
+          trocar de celular ou recuperar seus registros.
+        </Text>
+        <Button
+          secondary
+          label="Exportar backup"
+          disabled={task.busy}
+          onPress={() =>
+            task.run(async () => {
+              setMessage("");
+              await exportBackup(snapshot);
+            })
+          }
+        />
+        <Button
+          secondary
+          label="Restaurar backup"
+          disabled={task.busy}
+          onPress={() =>
+            task.run(async () => {
+              setMessage("");
+              setPending(await pickBackup());
+            })
+          }
+        />
+        <Text style={s.subtitle}>
+          O backup inclui nome, diárias, recebimentos e observações. Guarde em
+          um local de sua confiança.
+        </Text>
+      </View>
+      <Text style={[s.subtitle, { textAlign: "center" }]}>
+        Minhas Diárias · versão 1.1.0{"\n"}Feito para valorizar cada dia de
+        trabalho.
+      </Text>
+      <Confirm
+        error={task.error}
+        visible={!!pending}
+        title="Restaurar este backup?"
+        message={`O arquivo contém ${pending?.records.length ?? 0} diárias e ${pending?.payments.length ?? 0} recebimentos. Ele substituirá os dados atuais. Exporte seu backup antes de continuar.`}
+        busy={task.busy}
+        onCancel={() => setPending(null)}
+        onConfirm={() =>
+          task.run(async () => {
+            await d.restore(pending!);
+            setPending(null);
+            setMessage("Backup restaurado com sucesso.");
+          })
+        }
+      />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  accessibilityCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 2, borderColor: colors.primary, padding: 18, gap: 12 },
-  flex: { flex: 1 },
-  cardTitle: { color: colors.ink, fontSize: 23, fontWeight: '900' },
-  help: { color: colors.muted, fontSize: 16, lineHeight: 23, marginTop: 5 },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: colors.border, minHeight: 62, paddingHorizontal: 18 },
-  prefix: { color: colors.ink, fontSize: 21, fontWeight: '800', marginRight: 10 },
-  input: { flex: 1, color: colors.ink, fontSize: 23, fontWeight: '700', minHeight: 60 },
-  textInput: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: colors.border, minHeight: 62, paddingHorizontal: 18, color: colors.ink, fontSize: 19 },
-  save: { backgroundColor: colors.primary, marginTop: 28 },
-  footer: { color: colors.muted, textAlign: 'center', fontSize: 15, marginTop: 22 },
-  pressed: { opacity: 0.8 },
-});

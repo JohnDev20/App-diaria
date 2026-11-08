@@ -3,5 +3,5 @@ module.exports = {
   transform: {
     '^.+\\.[jt]sx?$': ['babel-jest', { presets: ['babel-preset-expo'] }],
   },
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/e2e/'],
 };

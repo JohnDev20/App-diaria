@@ -35,3 +35,12 @@ android/*.iml
 android/app/build/
 android/build/
 android/.cxx/
+
+# Signing and local tooling
+*.jks
+*.keystore
+!android/app/debug.keystore
+android/local.properties
+.expo/
+playwright-report/
+test-results/
