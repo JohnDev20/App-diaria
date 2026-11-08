@@ -1,10 +1,13 @@
-name: Android APK preview
+name: Android release for private signing
 on:
   push:
     branches: [build/apk-preview-1-1]
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: diarias-apk
+  cancel-in-progress: true
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -22,17 +25,26 @@ jobs:
       - uses: android-actions/setup-android@v3
       - run: npm ci
       - run: npm run typecheck && npm test -- --runInBand
-      - name: Build standalone preview APK
+      - name: Build release package for private re-signing
         working-directory: android
-        run: ./gradlew assemblePreview --no-daemon --max-workers=2 -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
-      - name: Verify APK
+        env:
+          DIARIAS_KEYSTORE_PATH: ${{ github.workspace }}/android/app/debug.keystore
+          DIARIAS_STORE_PASSWORD: android
+          DIARIAS_KEY_ALIAS: androiddebugkey
+          DIARIAS_KEY_PASSWORD: android
+        run: ./gradlew assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=armeabi-v7a,arm64-v8a
+      - name: Collect package and signing verifier
         run: |
-          APK=android/app/build/outputs/apk/preview/app-preview.apk
-          test -s "$APK"
-          sha256sum "$APK" > "$APK.sha256"
+          mkdir -p signing-input
+          cp android/app/build/outputs/apk/release/app-release.apk signing-input/app-for-private-signing.apk
+          sdkmanager "build-tools;36.0.0"
+          cp "$ANDROID_HOME/build-tools/36.0.0/lib/apksigner.jar" signing-input/
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging signing-input/app-for-private-signing.apk > signing-input/package-info.txt
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 signing-input/app-for-private-signing.apk
+          echo "Intermediate build only. Re-sign privately with the permanent key before delivery." > signing-input/README.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Minhas-Diarias-1.1.0-preview
-          path: android/app/build/outputs/apk/preview/*.apk*
+          name: Minhas-Diarias-release-signing-input
+          path: signing-input/
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
