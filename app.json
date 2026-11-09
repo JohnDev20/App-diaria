@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Minhas Di\u00e1rias",
+    "name": "Minhas Diárias",
     "slug": "minhas-diarias-app",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "minhasdiarias",
@@ -21,7 +21,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

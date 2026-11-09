@@ -12,7 +12,15 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, common as s } from "./ui";
-import { dateFromKey, formatDate, toDateKey, validDate } from "./diary";
+import {
+  DiaryRecord,
+  typeLabel,
+  dateFromKey,
+  formatDate,
+  formatLongDate,
+  toDateKey,
+  validDate,
+} from "./diary";
 export function Screen({
   children,
   title,
@@ -258,10 +266,12 @@ export function useToday() {
 }
 
 export function DateField({
+  records = [],
   value,
   onChange,
   disabled = false,
 }: {
+  records?: DiaryRecord[];
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
@@ -289,6 +299,9 @@ export function DateField({
         maxLength={10}
         editable={!disabled}
       />
+      {validDate(chosen) && (
+        <Text style={s.subtitle}>{formatLongDate(chosen)}</Text>
+      )}
       {!disabled && (
         <Button label="Escolher no calendário" secondary onPress={show} />
       )}
@@ -306,12 +319,16 @@ export function DateField({
             backgroundColor: "#10244999",
           }}
         >
-          <View
+          <ScrollView
             accessibilityViewIsModal
-            style={[
-              s.card,
-              { maxWidth: 440, width: "100%", alignSelf: "center" },
-            ]}
+            style={{
+              maxHeight: "92%",
+              maxWidth: 440,
+              width: "100%",
+              alignSelf: "center",
+              borderRadius: 24,
+            }}
+            contentContainerStyle={s.card}
           >
             <View style={s.row}>
               <Button
@@ -344,19 +361,21 @@ export function DateField({
               />
             </View>
             <View style={{ flexDirection: "row" }}>
-              {["D", "S", "T", "Q", "Q", "S", "S"].map((day, i) => (
-                <Text
-                  key={i}
-                  style={{
-                    width: "14.285%",
-                    textAlign: "center",
-                    color: colors.muted,
-                    paddingVertical: 8,
-                  }}
-                >
-                  {day}
-                </Text>
-              ))}
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map(
+                (day, i) => (
+                  <Text
+                    key={i}
+                    style={{
+                      width: "14.285%",
+                      textAlign: "center",
+                      color: colors.muted,
+                      paddingVertical: 8,
+                    }}
+                  >
+                    {day}
+                  </Text>
+                ),
+              )}
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {Array.from({ length: first + count }, (_, i) => {
@@ -364,13 +383,30 @@ export function DateField({
                   key = toDateKey(
                     new Date(month.getFullYear(), month.getMonth(), day, 12),
                   );
+                const record = records.find((r) => r.date === key);
+                const background =
+                  record?.type === "full"
+                    ? "#D9F5E5"
+                    : record?.type === "half"
+                      ? "#FFF0C2"
+                      : record?.type === "absence"
+                        ? "#FFE0E4"
+                        : "transparent";
+                const ink =
+                  record?.type === "full"
+                    ? "#12623B"
+                    : record?.type === "half"
+                      ? "#805B00"
+                      : record?.type === "absence"
+                        ? "#A62039"
+                        : colors.ink;
                 return day < 1 ? (
                   <View key={i} style={{ width: "14.285%", height: 44 }} />
                 ) : (
                   <Pressable
                     key={i}
                     accessibilityRole="button"
-                    accessibilityLabel={formatDate(key)}
+                    accessibilityLabel={`${formatDate(key)}, ${record ? typeLabel(record.type) : "Sem registro"}${record?.note ? `, ${record.note}` : ""}`}
                     accessibilityState={{
                       selected: key === chosen,
                       disabled: key > today,
@@ -382,28 +418,50 @@ export function DateField({
                     }}
                     style={{
                       width: "14.285%",
-                      minHeight: 44,
+                      minHeight: 58,
+                      borderWidth: 2,
+                      borderColor:
+                        key === chosen ? colors.primary : "transparent",
                       justifyContent: "center",
                       alignItems: "center",
                       borderRadius: 12,
-                      backgroundColor:
-                        key === chosen ? colors.primary : "transparent",
+                      backgroundColor: background,
                       opacity: key > today ? 0.3 : 1,
                     }}
                   >
                     <Text
                       style={{
-                        color: key === chosen ? "#FFFFFF" : colors.ink,
+                        color: ink,
                         fontWeight: "700",
                         fontSize: 16,
                       }}
                     >
                       {day}
                     </Text>
+                    {record && (
+                      <Text
+                        style={{ fontSize: 10, color: ink, fontWeight: "700" }}
+                      >
+                        {record.type === "full"
+                          ? "✓"
+                          : record.type === "half"
+                            ? "½"
+                            : "F"}
+                      </Text>
+                    )}
+                    {!!record?.note && (
+                      <Text style={{ fontSize: 9, color: ink }}>•</Text>
+                    )}
                   </Pressable>
                 );
               })}
             </View>
+            {records.length > 0 && (
+              <Text style={s.subtitle}>
+                Verde ✓ completa · Amarelo ½ meia · Vermelho F falta · • com
+                observação. Sem cor: sem registro.
+              </Text>
+            )}
             <Button
               secondary
               label="Hoje"
@@ -417,7 +475,7 @@ export function DateField({
               label="Fechar calendário"
               onPress={() => setOpen(false)}
             />
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>

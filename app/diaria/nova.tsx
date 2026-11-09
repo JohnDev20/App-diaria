@@ -69,7 +69,7 @@ export default function Editor() {
       title={existing ? "Editar diária" : "Nova diária"}
       subtitle="Um registro por dia. Você pode corrigir depois."
     >
-      <DateField value={date} onChange={setDate} />
+      <DateField value={date} onChange={setDate} records={d.records} />
       <Text style={s.sectionLabel}>TIPO DO DIA</Text>
       <View style={{ gap: 8 }}>
         {(["full", "half", "absence"] as DiaryType[]).map((t) => (
