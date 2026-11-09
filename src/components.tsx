@@ -420,7 +420,8 @@ export function DateField({
                       width: "14.285%",
                       minHeight: 58,
                       borderWidth: 2,
-                      borderColor: background,
+                      borderColor:
+                        key === chosen ? colors.primary : "transparent",
                       justifyContent: "center",
                       alignItems: "center",
                       borderRadius: 12,
