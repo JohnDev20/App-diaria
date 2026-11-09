@@ -1,5 +1,8 @@
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import { reportText, reportHtml, weekday } from "../../src/report";
 import React, { useState } from "react";
-import { Pressable, Share, Text, View } from "react-native";
+import { Platform, Pressable, Share, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useDiary } from "../../src/DiaryProvider";
 import {
@@ -24,15 +27,22 @@ export default function Summary() {
     today = useToday(),
     task = useTask();
   const [period, setPeriod] = useState<Period>("all"),
-    [page, setPage] = useState(30);
+    [page, setPage] = useState(30),
+    [monthOffset, setMonthOffset] = useState(0);
   const start = dateFromKey(today);
-  if (period === "month") start.setDate(1);
-  else start.setDate(start.getDate() - (period === "7" ? 6 : 14));
+  if (period === "month") {
+    start.setDate(1);
+    start.setMonth(start.getMonth() + monthOffset);
+  } else start.setDate(start.getDate() - (period === "7" ? 6 : 14));
   const startKey = period === "all" ? "0000-00-00" : toDateKey(start);
+  const endKey =
+    period === "month" && monthOffset < 0
+      ? toDateKey(new Date(start.getFullYear(), start.getMonth() + 1, 0, 12))
+      : today;
   const records = d.records.filter(
-      (r) => r.date >= startKey && r.date <= today,
+      (r) => r.date >= startKey && r.date <= endKey,
     ),
-    payments = d.payments.filter((p) => p.date >= startKey && p.date <= today),
+    payments = d.payments.filter((p) => p.date >= startKey && p.date <= endKey),
     t = totals(records, payments),
     all = totals(d.records, d.payments);
   const items = [
@@ -42,7 +52,7 @@ export default function Summary() {
   const title =
     period === "all"
       ? "Todo o histórico"
-      : `${formatDate(startKey)} a ${formatDate(today)}`;
+      : `${formatDate(startKey)} a ${formatDate(endKey)}`;
   return (
     <Screen
       title="Seu histórico"
@@ -69,6 +79,35 @@ export default function Summary() {
           </View>
         ))}
       </View>
+      {period === "month" && (
+        <View style={s.row}>
+          <Button
+            label="‹"
+            accessibilityLabel="Mês anterior do resumo"
+            secondary
+            onPress={() => {
+              setMonthOffset((n) => n - 1);
+              setPage(30);
+            }}
+          />
+          <Text style={[s.recordTitle, { flex: 1, textAlign: "center" }]}>
+            {start.toLocaleDateString("pt-BR", {
+              month: "long",
+              year: "numeric",
+            })}
+          </Text>
+          <Button
+            label="›"
+            accessibilityLabel="Próximo mês do resumo"
+            secondary
+            disabled={monthOffset >= 0}
+            onPress={() => {
+              setMonthOffset((n) => n + 1);
+              setPage(30);
+            }}
+          />
+        </View>
+      )}
       <View style={s.hero}>
         <Text style={s.heroLabel}>
           {period === "all" ? "SALDO GERAL" : "RESULTADO DO PERÍODO"}
@@ -111,18 +150,47 @@ export default function Summary() {
       </View>
       <Button
         secondary
-        label="Compartilhar resumo"
+        label="Compartilhar resumo detalhado"
+        disabled={task.busy}
         onPress={() =>
           task.run(async () => {
             await Share.share({
-              message: [
-                `Minhas Diárias${d.settings.name ? ` — ${d.settings.name}` : ""}`,
+              message: reportText({
+                name: d.settings.name,
                 title,
-                `Registrado: ${formatCurrency(t.earned)}`,
-                `Recebido: ${formatCurrency(t.received)}`,
-                `${period === "all" ? "Saldo geral" : "Resultado do período"}: ${formatCurrency(t.balance)}`,
-                `${t.full} completas, ${t.half} meias, ${t.absences} faltas`,
-              ].join("\n"),
+                records,
+                payments,
+                all: period === "all",
+              }),
+            });
+          })
+        }
+      />
+      <Button
+        label={task.busy ? "Preparando…" : "Compartilhar PDF"}
+        disabled={task.busy}
+        onPress={() =>
+          task.run(async () => {
+            const html = reportHtml({
+              name: d.settings.name,
+              title,
+              records,
+              payments,
+              all: period === "all",
+            });
+            if (Platform.OS === "web") {
+              await Print.printAsync({ html });
+              return;
+            }
+            if (!(await Sharing.isAvailableAsync()))
+              throw new Error(
+                "Compartilhamento indisponível neste aparelho. Use o resumo em texto.",
+              );
+            const file = await Print.printToFileAsync({ html });
+            await Sharing.shareAsync(file.uri, {
+              mimeType: "application/pdf",
+              UTI: "com.adobe.pdf",
+              dialogTitle: "Compartilhar diárias em PDF",
             });
           })
         }
@@ -156,6 +224,7 @@ export default function Summary() {
             <Text style={s.recordTitle}>{formatDate(item.date)}</Text>
             <Text style={s.amount}>{formatCurrency(item.amountCents)}</Text>
           </View>
+          <Text style={s.subtitle}>{weekday(item.date)}</Text>
           <Text style={s.subtitle}>
             {item.entry === "record"
               ? typeLabel(item.type)

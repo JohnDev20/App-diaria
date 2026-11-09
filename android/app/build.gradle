@@ -92,8 +92,8 @@ android {
         applicationId 'space.manus.minhas.diarias.app.t20260210200658'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10001
-        versionName "1.1.0"
+        versionCode 10002
+        versionName "1.2.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
